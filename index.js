@@ -1,25 +1,30 @@
 var t0 = Date.now();
 
-var bibref = require('./lib/bibref'),
-    XREFS = require('./xrefs');
+var bibref = require('./lib/bibref');
 
 var app = module.exports = require("express")();
 
-var errorhandlerOptions = {};
+var errorhandlerOptions = { log: true };
 if (process.env.NODE_ENV == "dev" || process.env.NODE_ENV == "development") {
     errorhandlerOptions.dumpExceptions = true;
     errorhandlerOptions.showStack = true;
 }
-
+app.enable("etag");
+var bannedIPs = [
+	// Palo Alto Networks bot
+	"34.96.130.0/24", "34.77.162.0/24", "34.86.35.0/24"
+];
+app.use(require('express-ipfilter').IpFilter(bannedIPs, { logLevel: "deny" }));
 app.use(require("compression")());
 app.use(require("cors")());
 app.use(require("body-parser").urlencoded({ extended: true }));
-app.use(require("multer")());
 app.use(require("errorhandler")(errorhandlerOptions));
 
 // bibrefs
 app.get('/bibrefs', function (req, res, next) {
-    var refs = req.param("refs");
+    var refs = req.query["refs"];
+    res.setHeader("Expires", new Date(Date.now() + 86400000).toUTCString());
+    res.setHeader("Cache-Control", "public, max-age=86400");
     if (refs) {
         refs = bibref.getRefs(refs.split(","));
         res.status(200).jsonp(refs);
@@ -30,13 +35,15 @@ app.get('/bibrefs', function (req, res, next) {
 
 // search
 app.get('/search-refs', function (req, res, next) {
-    var q = (req.param("q") || "").toLowerCase();
+    var q = (req.query["q"] || "").toLowerCase();
     if (q) {
 		var obj = {};
 		var current, shortname;
-		
+		var FALSE_POSITIVES = /https?:\/\/|\.html|\.shtml|\.xhtml|\/html/g;
 		function match(str) {
-			return (str.toLowerCase().indexOf(q) > -1);
+			str = str.toLowerCase() || "";
+			str = str.replace(FALSE_POSITIVES, "");
+			return str.indexOf(q) > -1;
 		}
 		
 		function add() {
@@ -49,9 +56,10 @@ app.get('/search-refs', function (req, res, next) {
 			if (match(shortname)) {
 				add();
 				if (current.aliasOf) {
+					var r = bibref.get(current.aliasOf);
 					var k = current.aliasOf;
 					while (k) {
-						obj[k] = all[k];
+						obj[k] = r[k];
 						k = obj[k].aliasOf;
 					}
 				}
@@ -85,7 +93,7 @@ app.get('/search-refs', function (req, res, next) {
 // search by url
 app.get('/reverse-lookup', function (req, res, next) {
     var refs,
-        urls = req.param("urls");
+        urls = req.query["urls"];
     if (urls) {
         refs = bibref.reverseLookup(urls.split(","));
         res.status(200).jsonp(refs);
@@ -118,17 +126,7 @@ app.get('/metadata', function (req, res, next) {
 
 // xrefs
 app.get('/xrefs', function (req, res, next) {
-    var data = {};
-    var refs = req.param("refs");
-    if (refs) {
-        refs.split(",").forEach(function(ref) {
-            if (XREFS[ref]) data[ref] = XREFS[ref];
-        });
-        res.status(200).jsonp(data);
-    } else {
-        res.status(200).jsonp(XREFS);
-    }
-    
+    res.status(410).jsonp({ message: "xrefs are no longer supported." });
 });
 
 var port = process.env.PORT || 5000;

@@ -36,12 +36,7 @@ function setup()
 
 function run()
 {
-    node "./scripts/list-refs.js" &&
-    node "./scripts/run.js" && 
-    node "./scripts/rfc.js" &&
-    node "./scripts/rdf.js" &&
-    node "./scripts/csswg.js" &&
-    node "./scripts/whatwg.js";
+    ./scripts/run-all;
 }
 
 function run_test_suite()
@@ -70,7 +65,7 @@ function update_repo()
 }
 
 # SET DEFAULTS
-: ${TARGET_BRANCH:=master}
+: ${TARGET_BRANCH:=main}
 : ${WORKING_DIR:=specref}
 
 # REQUIRED

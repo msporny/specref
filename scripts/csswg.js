@@ -2,10 +2,10 @@
 var request = require('request'),
     userAgent =require("./user-agent"),
     bibref = require('../lib/bibref'),
-    runner = require('./run');
-    
+    helper = require('./helper');
+
 var FILENAME = "csswg.json";
-var current = runner.readBiblio(FILENAME);
+var current = helper.readBiblio(FILENAME);
 
 var refs = bibref.expandRefs(bibref.raw);
 
@@ -43,7 +43,7 @@ var REJECT = {
     "XML10-4e": true
 }
 
-var REF_URL = "http://dev.w3.org/csswg/biblio.ref";
+var REF_URL = "https://drafts.csswg.org/biblio.ref";
 
 console.log("Updating CSS WG refs...");
 console.log("Fetching", REF_URL + "...");
@@ -57,7 +57,7 @@ request({
         console.log("Can't fetch", REF_URL + ".");
         return;
     }
-    
+
     console.log("Parsing", REF_URL + "...");
     parse(body).forEach(function(o) {
         var id = CURRENT[o.id] || o.id;
@@ -76,9 +76,10 @@ request({
         }
         delete o.id;
     });
-    current = runner.sortRefs(current);
+    current = helper.sortRefs(current);
     console.log("updating existing refs.")
-    runner.writeBiblio(FILENAME, current);
+    helper.writeBiblio(FILENAME, current);
+    helper.tryOverwrite(FILENAME);
 });
 
 var MONTHS = [

@@ -1,0 +1,4 @@
+[
+  { "id": "rfc1384", "action": "replaceProp", "prop": "obsoletedBy", "value": ["rfc1617"] },
+  { "id": "rfc0200", "action": "replaceProp", "prop": "obsoletedBy", "value": ["RFC-INDEX"] }
+]

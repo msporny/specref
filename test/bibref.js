@@ -11,7 +11,9 @@ suite('Test bibref api', function() {
             }
         },
         foo: { aliasOf: "FOO" },
-        hello: { title: "HELLO" }
+        bar: { aliasOf: "fOO" },
+        hello: { title: "HELLO" },
+        series: { aliasOf: "FOO", isSeriesAlias: true }
     };
 
     test('bibref constructor handles a single reference obj', function() {
@@ -55,8 +57,13 @@ suite('Test bibref api', function() {
         assert.equal("FOO title", expanded["FOO-BAZ"].title);
     });
 
+    test('bibref.expandRefs does not create versions for series aliases', function() {
+        var b = bibref.create(obj);
+        assert.ok(!('FOO' in b.get("series-BAR")), "Cannot access a spec version from a series alias.");
+    });
+
     test('bibref.cleanupRefs modifies the refs correctly', function() {
-        var cleanedup = bibref.cleanupRefs({
+        var cleaned = bibref.cleanupRefs({
             foo: {
                 versions: {},
                 rawDate: "2012-1-1",
@@ -64,7 +71,7 @@ suite('Test bibref api', function() {
                 bar: 123
             }
         });
-        var foo = cleanedup.foo;
+        var foo = cleaned.foo;
         assert.ok(typeof foo.versions == "object", "The versions property is an array of identifiers.");
         assert.ok(!('rawDate' in foo));
         assert.ok('date' in foo);
@@ -143,6 +150,14 @@ suite('Test bibref api', function() {
 
         assert.equal('HELLO', b.get('HeLLo').HeLLo.aliasOf, 'The differently cased alias points to the uppercased alias.');
         assert.equal('hello', b.get('HeLLo').HELLO.aliasOf, 'The uppercased  alias points to ref itself.');
+    });
+
+    test('bibref.get handles aliases case-insensitively', function() {
+        var b = bibref.create(obj);
+        var r = b.get('bar');
+        assert.ok('bar' in r, 'Returns the requested alias.');
+        assert.ok('fOO' in r, 'Returns an alias created on the fly.');
+        assert.ok('FOO' in r, 'Returns the ref itself.');
     });
 
     test('bibref.get also includes canonical reference of versioned specs', function() {
@@ -328,5 +343,42 @@ suite('Test bibref reverseLookup API', function() {
         var output = b.reverseLookup([edDraft]);
         assert(edDraft in output);
         assert.equal("Bar", output[edDraft].title);
+    });
+
+    test('returns the right ref even when url also exists as edDraft', function() {
+        var foo = "http://example.com/foof";
+        var bar = "http://example.com/barf";
+        var b = bibref.create({
+            foo: { title: "Foo", href: foo },
+            fooEd: { title: "Foo ED", edDraft: foo },
+            barEd: { title: "Bar ED", edDraft: bar },
+            bar: { title: "Bar", href: bar }
+        });
+        var output = b.reverseLookup([foo, bar]);
+        assert(foo in output);
+        assert.equal("Foo", output[foo].title);
+        assert(bar in output);
+        assert.equal("Bar", output[bar].title);
+    });
+});
+
+suite('Test bibref normalizeUrl API', function() {
+    test('removes protocol', function() {
+        assert.equal("example.com", bibref.normalizeUrl("http://example.com"));
+        assert.equal("example.com", bibref.normalizeUrl("https://example.com"));
+    });
+    
+    test('removes www. subdomains', function() {
+        assert.equal("example.com", bibref.normalizeUrl("http://www.example.com"));
+    });
+    
+    test('keeps hashes around', function() {
+        assert.equal("example.com#foo", bibref.normalizeUrl("http://www.example.com#foo"));
+    });
+    
+    test('removes trailing slashes', function() {
+        assert.equal("example.com", bibref.normalizeUrl("http://www.example.com/"));
+        assert.equal("example.com/foo", bibref.normalizeUrl("http://www.example.com/foo/"));
+        assert.equal("example.com/foo/index.html", bibref.normalizeUrl("http://www.example.com/foo/index.html"));
     });
 });
